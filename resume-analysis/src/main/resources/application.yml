@@ -1,0 +1,24 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: resume-analysis
+  datasource:
+    url: jdbc:mysql://localhost:3306/resume_recommendation?useSSL=false&serverTimezone=UTC
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  elasticsearch:
+    uris: http://localhost:9200
+
+openai:
+  api:
+    key: your-api-key-here
+
+logging:
+  level:
+    com.resumerecommendation: DEBUG 

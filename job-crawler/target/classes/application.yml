@@ -1,0 +1,58 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: job-crawler
+  datasource:
+    url: jdbc:mysql://localhost:3306/resume_recommendation?useSSL=false&serverTimezone=UTC
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  elasticsearch:
+    uris: http://localhost:9200
+
+crawler:
+  threadCount: 5
+  retryCount: 3
+  retryDelay: 1000
+  headers:
+    User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36
+  sources:
+    - name: zhilian
+      baseUrl: https://www.zhaopin.com
+      listUrl: https://sou.zhaopin.com
+      detailUrlPattern: https://jobs.zhaopin.com/.*?.html
+      useSelenium: true
+      pageSize: 30
+      selectors:
+        listItem: .joblist-box__item
+        nextPage: .soupager__next
+        title: .job-detail__title
+        company: .company__title
+        salary: .job-detail__salary
+        location: .job-detail__location
+        description: .describtion__detail-content
+        skills: .describtion__skills-content
+    - name: liepin
+      baseUrl: https://www.liepin.com
+      listUrl: https://www.liepin.com/zhaopin
+      detailUrlPattern: https://www.liepin.com/job/.*?.shtml
+      useSelenium: false
+      pageSize: 40
+      selectors:
+        listItem: .job-card-wrapper
+        nextPage: .ant-pagination-next
+        title: .job-title
+        company: .company-name
+        salary: .job-salary
+        location: .job-location
+        description: .job-description
+        skills: .job-skills
+
+logging:
+  level:
+    com.resumerecommendation: DEBUG 
