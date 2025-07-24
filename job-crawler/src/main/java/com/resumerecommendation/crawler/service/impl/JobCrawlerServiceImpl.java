@@ -173,7 +173,8 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
 
-        try (WebDriver driver = new ChromeDriver(options)) {
+        WebDriver driver = new ChromeDriver(options);
+        try {
             driver.get(page.getUrl().toString());
             Thread.sleep(2000); // 等待页面加载
 
@@ -190,6 +191,8 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
             page.putField("job", position);
         } catch (Exception e) {
             log.error("Error processing page with Selenium: {}", page.getUrl(), e);
+        } finally {
+            driver.quit();
         }
     }
 

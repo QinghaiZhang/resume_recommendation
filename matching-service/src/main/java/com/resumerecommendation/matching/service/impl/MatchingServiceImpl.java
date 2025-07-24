@@ -117,10 +117,9 @@ public class MatchingServiceImpl implements MatchingService {
         }
 
         // 执行搜索
-        SearchHits<JobPosition> searchHits = elasticsearchOperations.search(
-                new CriteriaQuery(criteria).setMaxResults(limit),
-                JobPosition.class
-        );
+        CriteriaQuery query = new CriteriaQuery(criteria);
+        query.setMaxResults(limit);
+        SearchHits<JobPosition> searchHits = elasticsearchOperations.search(query, JobPosition.class);
 
         return searchHits.stream()
                 .map(SearchHit::getContent)
@@ -142,10 +141,9 @@ public class MatchingServiceImpl implements MatchingService {
         }
 
         // 执行搜索
-        SearchHits<Resume> searchHits = elasticsearchOperations.search(
-                new CriteriaQuery(criteria).setMaxResults(limit),
-                Resume.class
-        );
+        CriteriaQuery query = new CriteriaQuery(criteria);
+        query.setMaxResults(limit);
+        SearchHits<Resume> searchHits = elasticsearchOperations.search(query, Resume.class);
 
         return searchHits.stream()
                 .map(SearchHit::getContent)
@@ -172,11 +170,21 @@ public class MatchingServiceImpl implements MatchingService {
     }
 
     private JobPosition findJobById(Long jobId) {
-        return elasticsearchOperations.get(jobId.toString(), JobPosition.class);
+        try {
+            return elasticsearchOperations.get(jobId.toString(), JobPosition.class);
+        } catch (Exception e) {
+            log.error("Error finding job by id: {}", jobId, e);
+            return null;
+        }
     }
 
     private Resume findResumeById(Long resumeId) {
-        return elasticsearchOperations.get(resumeId.toString(), Resume.class);
+        try {
+            return elasticsearchOperations.get(resumeId.toString(), Resume.class);
+        } catch (Exception e) {
+            log.error("Error finding resume by id: {}", resumeId, e);
+            return null;
+        }
     }
 
     private int calculateTotalExperience(Resume resume) {
