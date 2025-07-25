@@ -226,7 +226,7 @@ public class OpenAIServiceImpl implements AIService {
                 描述：%s
                 
                 """,
-                exp.getCompany(),
+                exp.getCompanyName(),
                 exp.getPosition(),
                 exp.getStartDate(),
                 exp.getEndDate(),
