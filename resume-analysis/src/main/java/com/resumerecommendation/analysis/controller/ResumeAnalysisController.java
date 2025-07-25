@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +27,7 @@ public class ResumeAnalysisController {
     private final ResumeParserService resumeParserService;
     private final AIService aiService;
 
-    @PostMapping("/analyze")
+    @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "分析简历文件", description = "上传并分析简历文件(PDF或Word)，提取其中的关键信息")
     @ApiResponse(responseCode = "200", description = "成功解析简历", 
                  content = @Content(mediaType = "application/json", 
@@ -38,7 +39,7 @@ public class ResumeAnalysisController {
         return ResponseEntity.ok(resume);
     }
 
-    @PostMapping("/{resumeId}/improve")
+    @PostMapping(value = "/{resumeId}/improve", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "获取简历改进建议", description = "基于AI分析，为指定简历提供改进建议")
     @ApiResponse(responseCode = "200", description = "成功生成改进建议")
     public ResponseEntity<String> getImprovementSuggestions(
@@ -48,7 +49,7 @@ public class ResumeAnalysisController {
         return ResponseEntity.ok(suggestions);
     }
 
-    @PostMapping("/{resumeId}/skills")
+    @PostMapping(value = "/{resumeId}/skills", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "评估技能等级", description = "分析简历中的技能并评估其等级")
     @ApiResponse(responseCode = "200", description = "成功评估技能等级", 
                  content = @Content(mediaType = "application/json"))
@@ -62,7 +63,7 @@ public class ResumeAnalysisController {
         return ResponseEntity.ok(skillLevels);
     }
 
-    @PostMapping("/{resumeId}/analyze-content")
+    @PostMapping(value = "/{resumeId}/analyze-content", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "分析简历内容", description = "全面分析简历内容，包括优势、不足和改进建议")
     @ApiResponse(responseCode = "200", description = "成功分析简历内容", 
                  content = @Content(mediaType = "application/json"))
