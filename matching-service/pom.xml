@@ -22,5 +22,13 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
+        
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.26</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
-</project> 
+</project>
