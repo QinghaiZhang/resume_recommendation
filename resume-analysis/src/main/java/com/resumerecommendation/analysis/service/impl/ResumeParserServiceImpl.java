@@ -72,9 +72,8 @@ public class ResumeParserServiceImpl implements ResumeParserService {
     private Resume processResumeText(String text) {
         Resume resume = new Resume();
         resume.setRawContent(text);
-
         // 使用AI服务分析简历内容
-        Map<String, Object> analysis = aiService.analyzeResume(resume);
+        aiService.parseExtractedInfoResponse(resume);
         List<String> skills = aiService.extractSkills(text);
         Map<String, Integer> skillLevels = aiService.assessSkillLevels(text, skills);
         String suggestions = aiService.generateImprovementSuggestions(resume);
@@ -82,9 +81,10 @@ public class ResumeParserServiceImpl implements ResumeParserService {
         // 设置分析结果
         resume.setSkills(skills);
         resume.setSkillLevels(skillLevels);
-        resume.setAiAnalysis(analysis.toString());
         resume.setImprovementSuggestions(suggestions);
 
+        Map<String, Object> analysis = aiService.analyzeResume(resume);
+        resume.setAiAnalysis(analysis.toString());
         return resume;
     }
 

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface AIService {
+
+    Map<String, Object> parseExtractedInfoResponse(Resume resume);
     /**
      * 分析简历内容
      */

@@ -31,6 +31,11 @@ public class OpenAIServiceImpl implements AIService {
     }
 
     @Override
+    public Map<String, Object> parseExtractedInfoResponse(Resume resume) {
+        return Map.of();
+    }
+
+    @Override
     public Map<String, Object> analyzeResume(Resume resume) {
         String prompt = String.format("""
             分析以下简历内容，提供详细的分析报告：
