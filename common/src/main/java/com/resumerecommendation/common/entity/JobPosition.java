@@ -1,71 +1,85 @@
 package com.resumerecommendation.common.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Data
-@Entity
-@Table(name = "job_positions")
-@Document(indexName = "job_positions")
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "职位信息实体")
 public class JobPosition {
-    @Id
-    @javax.persistence.Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Schema(description = "职位ID")
     private Long id;
 
-    @Field(type = FieldType.Text)
+    @Schema(description = "职位标题")
     private String title;
 
-    @Field(type = FieldType.Text)
+    @Schema(description = "公司名称")
     private String company;
 
-    @Field(type = FieldType.Text)
+    @Schema(description = "工作地点")
     private String location;
 
-    @Field(type = FieldType.Text)
+    @Schema(description = "所属行业")
+    private String industry;
+
+    @Schema(description = "职位描述")
     private String description;
 
-    @Field(type = FieldType.Integer)
-    private Integer salaryMin;
-
-    @Field(type = FieldType.Integer)
-    private Integer salaryMax;
-
-    @Field(type = FieldType.Keyword)
-    private List<String> requiredSkills;
-
-    @Field(type = FieldType.Keyword)
-    private List<String> preferredSkills;
-
-    @Field(type = FieldType.Object)
-    private Map<String, Integer> skillLevelRequirements;
-
-    @Field(type = FieldType.Integer)
-    private Integer experienceYears;
-
-    @Field(type = FieldType.Text)
-    private String educationRequirement;
-
-    @Field(type = FieldType.Text)
+    @Schema(description = "职位来源")
     private String source;
 
-    @Field(type = FieldType.Text)
+    @Schema(description = "来源URL")
     private String sourceUrl;
 
-    @Field(type = FieldType.Date)
+    @Schema(description = "最低薪资")
+    private Integer salaryMin;
+
+    @Schema(description = "最高薪资")
+    private Integer salaryMax;
+
+    @Schema(description = "所需技能")
+    private List<String> requiredSkills;
+
+    @Schema(description = "所需工作经验（年）")
+    private Integer requiredExperience;
+
+    @Schema(description = "职位类型")
+    private String employmentType;
+
+    @Schema(description = "工作性质")
+    private String jobNature;
+
+    @Schema(description = "学历要求")
+    private String educationRequirement;
+
+    @Schema(description = "公司规模")
+    private String companySize;
+
+    @Schema(description = "公司性质")
+    private String companyType;
+
+    @Schema(description = "工作年限")
+    private Integer experienceYears;
+
+    @Schema(description = "爬取时间")
+    private LocalDateTime crawlTime;
+
+    @Schema(description = "发布时间")
     private LocalDateTime publishTime;
 
-    @Field(type = FieldType.Date)
-    private LocalDateTime crawlTime;
+    @Schema(description = "职位状态")
+    private String status;
+
+    @Schema(description = "职位福利")
+    private List<String> benefits;
+
+    @Schema(description = "相关度分数")
+    private Double relevanceScore;
 } 

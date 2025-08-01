@@ -5,9 +5,10 @@ spring:
   application:
     name: job-crawler
   datasource:
-    url: jdbc:mysql://localhost:3306/resume_recommendation?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/job_crawler
     username: root
-    password: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,42 +17,42 @@ spring:
     uris: http://localhost:9200
 
 crawler:
-  threadCount: 5
-  retryCount: 3
-  retryDelay: 1000
-  headers:
-    User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36
+  thread-count: 5
+  resume-based:
+    max-parallel-crawlers: 5
+    relevance-threshold: 0.7
+    max-results-per-source: 100
+    weights:
+      skill: 0.4
+      industry: 0.3
+      experience: 0.3
   sources:
-    - name: zhilian
-      baseUrl: https://www.zhaopin.com
-      listUrl: https://sou.zhaopin.com
-      detailUrlPattern: https://jobs.zhaopin.com/.*?.html
-      useSelenium: true
-      pageSize: 30
+    - name: linkedin
+      base-url: https://www.linkedin.com/jobs
+      list-url: https://www.linkedin.com/jobs/search
+      use-selenium: true
       selectors:
-        listItem: .joblist-box__item
-        nextPage: .soupager__next
-        title: .job-detail__title
-        company: .company__title
-        salary: .job-detail__salary
-        location: .job-detail__location
-        description: .describtion__detail-content
-        skills: .describtion__skills-content
-    - name: liepin
-      baseUrl: https://www.liepin.com
-      listUrl: https://www.liepin.com/zhaopin
-      detailUrlPattern: https://www.liepin.com/job/.*?.shtml
-      useSelenium: false
-      pageSize: 40
+        listItem: .job-card-container
+        nextPage: .pagination__next-button
+        title: .job-details-jobs-unified-top-card__job-title
+        company: .job-details-jobs-unified-top-card__company-name
+        location: .job-details-jobs-unified-top-card__bullet
+        description: .job-details-jobs-unified-top-card__job-description
+        skills: .job-details-jobs-unified-top-card__skills-section
+        salary: .job-details-jobs-unified-top-card__salary-info
+    - name: zhipin
+      base-url: https://www.zhipin.com
+      list-url: https://www.zhipin.com/web/geek/job
+      use-selenium: true
       selectors:
         listItem: .job-card-wrapper
-        nextPage: .ant-pagination-next
+        nextPage: .options-pages .next
         title: .job-title
         company: .company-name
-        salary: .job-salary
         location: .job-location
         description: .job-description
-        skills: .job-skills
+        skills: .job-tags
+        salary: .salary
 
 logging:
   level:

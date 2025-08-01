@@ -1,6 +1,7 @@
 package com.resumerecommendation.crawler.service.impl;
 
 import com.resumerecommendation.common.entity.JobPosition;
+import com.resumerecommendation.common.entity.Resume;
 import com.resumerecommendation.crawler.config.CrawlerConfig;
 import com.resumerecommendation.crawler.service.JobCrawlerService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,11 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
             .setRetryTimes(3)
             .setSleepTime(1000)
             .setTimeOut(10000);
+
+    @Override
+    public List<JobPosition> crawlJobsBasedOnResume(Resume resume, Integer maxResults) {
+        return new ArrayList<>();
+    }
 
     @Override
     public void startCrawling(String source) {

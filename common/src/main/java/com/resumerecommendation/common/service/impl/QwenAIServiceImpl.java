@@ -82,7 +82,7 @@ public class QwenAIServiceImpl implements AIService {
     }
 
     @NotNull
-    public Map<String, Object> parseExtractedInfoResponse(Resume resume) {
+    public void parseExtractedInfoResponse(Resume resume) {
         String prompt = String.format("""
             请分析以下简历内容，从中提取并结构化关键信息：
             
@@ -134,7 +134,6 @@ public class QwenAIServiceImpl implements AIService {
             List<WorkExperience> work_experiences = (List<WorkExperience>) extractedInfo.get("work_experiences");
             resume.setWorkExperiences(work_experiences);
         }
-        return extractedInfo;
     }
 
     @Override
@@ -332,7 +331,7 @@ public class QwenAIServiceImpl implements AIService {
                     
                     """,
                     exp.getCompanyName(),
-                    exp.getPosition(),
+                    exp.getJobTitle(),
                     exp.getStartDate(),
                     exp.getEndDate(),
                     exp.getDescription()
@@ -562,7 +561,7 @@ public class QwenAIServiceImpl implements AIService {
                             workExperience.setCompanyName((String) workExpMap.get("company"));
                         }
                         if (workExpMap.containsKey("position")) {
-                            workExperience.setPosition((String) workExpMap.get("position"));
+                            workExperience.setJobTitle((String) workExpMap.get("position"));
                         }
                         if (workExpMap.containsKey("period")) {
                             String period = (String) workExpMap.get("period");
@@ -599,7 +598,7 @@ public class QwenAIServiceImpl implements AIService {
                                 workExperience.setCompanyName((String) workExpMap.get("company"));
                             }
                             if (workExpMap.containsKey("position")) {
-                                workExperience.setPosition((String) workExpMap.get("position"));
+                                workExperience.setJobTitle((String) workExpMap.get("position"));
                             }
                             if (workExpMap.containsKey("period")) {
                                 String period = (String) workExpMap.get("period");
