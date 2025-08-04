@@ -22,11 +22,6 @@ spring:
       operations-sorter: method
       tags-sorter: alpha
 
-# OpenAI API 配置（已替换为通义千问）
-openai:
-  api:
-    key: ${OPENAI_API_KEY:your-openai-api-key-here}
-
 # 通义千问 DashScope API 配置
 dashscope:
   api:

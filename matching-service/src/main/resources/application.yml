@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: 8084
 
 spring:
   application:
@@ -19,6 +19,7 @@ openai:
   api:
     key: your-api-key-here
 
-logging:
-  level:
-    com.resumerecommendation: DEBUG 
+# DashScope API密钥配置
+dashscope:
+  api:
+    key: ${DASHSCOPE_API_KEY:sk-1fab8905c4a442da9e80c7ef81010a59}

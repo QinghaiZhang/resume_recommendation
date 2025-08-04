@@ -1,6 +1,7 @@
 package com.resumerecommendation.crawler.controller;
 
 import com.resumerecommendation.common.entity.JobPosition;
+import com.resumerecommendation.common.entity.Resume;
 import com.resumerecommendation.crawler.service.JobCrawlerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -51,4 +52,13 @@ public class JobCrawlerController {
         jobCrawlerService.cleanInvalidJobs();
         return ResponseEntity.ok("Invalid jobs cleanup started");
     }
-} 
+    
+    // 新增基于简历推荐职位的端点
+    @PostMapping("/jobs/recommend")
+    public ResponseEntity<List<JobPosition>> recommendJobs(
+            @RequestBody Resume resume,
+            @RequestParam(defaultValue = "10") Integer maxResults) {
+        List<JobPosition> recommendedJobs = jobCrawlerService.crawlJobsBasedOnResume(resume, maxResults);
+        return ResponseEntity.ok(recommendedJobs);
+    }
+}

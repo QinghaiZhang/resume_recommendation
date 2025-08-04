@@ -19,13 +19,9 @@ spring:
 crawler:
   thread-count: 5
   resume-based:
-    max-parallel-crawlers: 5
-    relevance-threshold: 0.7
-    max-results-per-source: 100
-    weights:
-      skill: 0.4
-      industry: 0.3
-      experience: 0.3
+    max-page: 20
+    min-salary: 8000
+    max-salary: 30000
   sources:
     - name: linkedin
       base-url: https://www.linkedin.com/jobs
@@ -42,7 +38,7 @@ crawler:
         salary: .job-details-jobs-unified-top-card__salary-info
     - name: zhipin
       base-url: https://www.zhipin.com
-      list-url: https://www.zhipin.com/web/geek/job
+      list-url: https://www.zhipin.com/web/geek/jobs?query=Java&city=101020100
       use-selenium: true
       selectors:
         listItem: .job-card-wrapper
@@ -54,6 +50,11 @@ crawler:
         skills: .job-tags
         salary: .salary
 
+# DashScope API密钥配置
+dashscope:
+  api:
+    key: ${DASHSCOPE_API_KEY:sk-1fab8905c4a442da9e80c7ef81010a59}
+
 logging:
   level:
-    com.resumerecommendation: DEBUG 
+    com.resumerecommendation: DEBUG

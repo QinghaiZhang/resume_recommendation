@@ -82,4 +82,8 @@ public class JobPosition {
 
     @Schema(description = "相关度分数")
     private Double relevanceScore;
+
+    public void setRelevanceScore(Double relevanceScore) {
+        this.relevanceScore = relevanceScore;
+    }
 } 

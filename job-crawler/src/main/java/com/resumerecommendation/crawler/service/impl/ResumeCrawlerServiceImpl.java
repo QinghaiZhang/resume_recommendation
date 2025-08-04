@@ -6,8 +6,8 @@ import com.resumerecommendation.common.entity.WorkExperience;
 import com.resumerecommendation.crawler.config.CrawlerConfig;
 import com.resumerecommendation.crawler.service.JobCrawlerService;
 import com.resumerecommendation.crawler.service.ResumeAnalyzer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -16,32 +16,58 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ResumeCrawlerServiceImpl implements JobCrawlerService {
 
-    private final CrawlerConfig crawlerConfig;
-    private final ResumeAnalyzer resumeAnalyzer;
-    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
+    private CrawlerConfig crawlerConfig;
+    private ResumeAnalyzer resumeAnalyzer;
+    private ExecutorService executorService;
+
+    // 默认构造函数
+    public ResumeCrawlerServiceImpl() {
+        this.executorService = Executors.newFixedThreadPool(5);
+    }
+
+    // 主构造函数
+    public ResumeCrawlerServiceImpl(CrawlerConfig crawlerConfig, ResumeAnalyzer resumeAnalyzer, ExecutorService executorService) {
+        this.crawlerConfig = crawlerConfig;
+        this.resumeAnalyzer = resumeAnalyzer;
+        this.executorService = executorService != null ? executorService : Executors.newFixedThreadPool(5);
+    }
+
+    // 为向后兼容保留的构造函数
+    public ResumeCrawlerServiceImpl(CrawlerConfig crawlerConfig, ResumeAnalyzer resumeAnalyzer) {
+        this(crawlerConfig, resumeAnalyzer, null);
+    }
+
+    @Autowired
+    public void setCrawlerConfig(CrawlerConfig crawlerConfig) {
+        this.crawlerConfig = crawlerConfig;
+    }
+
+    @Autowired
+    public void setResumeAnalyzer(ResumeAnalyzer resumeAnalyzer) {
+        this.resumeAnalyzer = resumeAnalyzer;
+    }
 
     @Override
     public List<JobPosition> crawlJobsBasedOnResume(Resume resume, Integer maxResults) {
         // 分析简历
         ResumeAnalyzer.AnalysisResult analysis = resumeAnalyzer.analyzeResume(resume);
-        
+
         // 创建多个爬虫任务
         List<CompletableFuture<List<JobPosition>>> futures = new ArrayList<>();
-        
+
         // 基于技能的爬取
-        futures.add(CompletableFuture.supplyAsync(() -> 
+        futures.add(CompletableFuture.supplyAsync(() ->
             crawlJobsBySkills(analysis.getKeywords(), maxResults / 3), executorService));
-            
-        // 基于行业的爬取
-        futures.add(CompletableFuture.supplyAsync(() ->
-            crawlJobsByIndustry(analysis.getIndustries(), maxResults / 3), executorService));
-            
-        // 基于职位名称的爬取
-        futures.add(CompletableFuture.supplyAsync(() ->
-            crawlJobsByTitle(resume.getWorkExperiences(), maxResults / 3), executorService));
+
+//        // 基于行业的爬取
+//        futures.add(CompletableFuture.supplyAsync(() ->
+//            crawlJobsByIndustry(analysis.getIndustries(), maxResults / 3), executorService));
+//
+//        // 基于职位名称的爬取
+//        futures.add(CompletableFuture.supplyAsync(() ->
+//            crawlJobsByTitle(resume.getWorkExperiences(), maxResults / 3), executorService));
 
         // 合并结果
         List<JobPosition> allJobs = futures.stream()
@@ -60,14 +86,14 @@ public class ResumeCrawlerServiceImpl implements JobCrawlerService {
         return searchJobs(skillsQuery, null, maxResults);
     }
 
-    private List<JobPosition> crawlJobsByIndustry(List<String> industries, Integer maxResults) {
+    protected List<JobPosition> crawlJobsByIndustry(List<String> industries, Integer maxResults) {
         if (industries.isEmpty()) return new ArrayList<>();
 
         String industryQuery = String.join(" ", industries);
         return searchJobs(industryQuery, null, maxResults);
     }
 
-    private List<JobPosition> crawlJobsByTitle(List<WorkExperience> experiences, Integer maxResults) {
+    protected List<JobPosition> crawlJobsByTitle(List<WorkExperience> experiences, Integer maxResults) {
         if (experiences == null || experiences.isEmpty()) return new ArrayList<>();
 
         String titleQuery = experiences.stream()
@@ -79,12 +105,12 @@ public class ResumeCrawlerServiceImpl implements JobCrawlerService {
     private List<JobPosition> rankJobsByRelevance(List<JobPosition> jobs, ResumeAnalyzer.AnalysisResult analysis) {
         // 计算每个职位的相关度分数
         Map<JobPosition, Double> scoreMap = new HashMap<>();
-        
+
         for (JobPosition job : jobs) {
             double score = calculateRelevanceScore(job, analysis);
             scoreMap.put(job, score);
         }
-        
+
         // 按分数排序
         return scoreMap.entrySet().stream()
                 .sorted(Map.Entry.<JobPosition, Double>comparingByValue().reversed())
@@ -96,7 +122,7 @@ public class ResumeCrawlerServiceImpl implements JobCrawlerService {
         double skillScore = calculateSkillScore(job, analysis.getSkillWeights());
         double industryScore = calculateIndustryScore(job, analysis.getIndustries());
         double experienceScore = calculateExperienceScore(job, analysis.getYearsOfExperience());
-        
+
         // 权重可以通过配置调整
         return skillScore * 0.4 + industryScore * 0.3 + experienceScore * 0.3;
     }
@@ -114,17 +140,17 @@ public class ResumeCrawlerServiceImpl implements JobCrawlerService {
 
     private double calculateIndustryScore(JobPosition job, List<String> industries) {
         if (industries.isEmpty()) return 0.0;
-        
+
         // 简单实现：如果职位所属行业在简历行业列表中，给1.0分，否则0.0分
         return industries.stream()
-                .anyMatch(industry -> 
-                    job.getIndustry() != null && 
+                .anyMatch(industry ->
+                    job.getIndustry() != null &&
                     job.getIndustry().toLowerCase().contains(industry.toLowerCase())) ? 1.0 : 0.0;
     }
 
     private double calculateExperienceScore(JobPosition job, int yearsOfExperience) {
         if (job.getRequiredExperience() == null) return 1.0;
-        
+
         int required = job.getRequiredExperience();
         if (yearsOfExperience >= required) {
             return 1.0;
@@ -153,7 +179,8 @@ public class ResumeCrawlerServiceImpl implements JobCrawlerService {
 
     @Override
     public List<JobPosition> searchJobs(String keyword, String city, Integer pageSize) {
-        // 实现搜索逻辑，可以复用JobCrawlerServiceImpl中的实现
+        // 由于没有ElasticsearchOperations bean，直接返回空列表
+        log.warn("ElasticsearchOperations is not available, returning empty list");
         return new ArrayList<>();
     }
 
@@ -166,4 +193,4 @@ public class ResumeCrawlerServiceImpl implements JobCrawlerService {
     public void cleanInvalidJobs() {
         // 实现代码
     }
-} 
+}
