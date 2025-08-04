@@ -39,3 +39,9 @@ Thumbs.db
 # 环境配置文件（不应提交的）
 .env
 *.env.*
+
+# 特定模块的target目录
+job-crawler/target/
+resume-analysis/target/
+matching-service/target/
+common/target/
