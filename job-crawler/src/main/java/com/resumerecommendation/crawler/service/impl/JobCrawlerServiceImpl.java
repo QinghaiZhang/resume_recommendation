@@ -512,78 +512,70 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     }
 
                     // 提取职位描述
-                    try {
-                        log.debug("Extracting description for job item {}/{}", i+1, jobElements.size());
-                        String description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-detail");
-                        if (description == null || description.isEmpty()) {
-                            description = extractTextWithSelector(jobElement, ".job-description");
-                        }
-                        if (description == null || description.isEmpty()) {
-                            description = extractTextWithSelector(jobElement, ".job-desc");
-                        }
-                        if (description == null || description.isEmpty()) {
-                            description = extractTextWithSelector(jobElement, ".text-desc");
-                        }
-                        if (description == null || description.isEmpty()) {
-                            description = extractTextWithSelector(jobElement, ".job-detail");
-                        }
-                        if (description == null || description.isEmpty()) {
-                            description = extractTextWithSelector(jobElement, ".desc");
-                        }
-                        if (description != null && !description.isEmpty()) {
-                            // 如果description为空，才设置描述信息，避免覆盖薪资信息
-                            if (jobPosition.getDescription() == null || jobPosition.getDescription().isEmpty() || 
-                                jobPosition.getDescription().equals(extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary")) ||
-                                jobPosition.getDescription().equals(extractTextWithSelector(jobElement, ".job-salary"))) {
-                                jobPosition.setDescription(description);
-                            }
-                        }
-                        log.debug("Job description: {}", jobPosition.getDescription());
-                    } catch (Exception e) {
-                        log.warn("Failed to extract description for job item", e);
+                    log.debug("Extracting description for job item {}/{}", i+1, jobElements.size());
+                    String description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-detail");
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-detail");
                     }
-
-                    // 提取经验要求
-                    try {
-                        log.debug("Extracting experience for job item {}/{}", i+1, jobElements.size());
-                        String experience = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .tag-list li:first-child");
-                        if (experience == null || experience.isEmpty()) {
-                            experience = extractTextWithSelector(jobElement, ".experience");
-                        }
-                        if (experience == null || experience.isEmpty()) {
-                            // 尝试从tag-list中提取
-                            List<ElementHandle> tags = jobElement.querySelectorAll(".tag-list li");
-                            if (!tags.isEmpty()) {
-                                ElementHandle firstTag = tags.get(0);
-                                experience = firstTag.innerText();
-                            }
-                        }
-                        // 尝试解析经验要求为数字
-                        if (experience != null && !experience.isEmpty()) {
-                            Pattern pattern = Pattern.compile("(\\d+)(?:-(\\d+))?年");
-                            Matcher matcher = pattern.matcher(experience);
-                            if (matcher.find()) {
-                                try {
-                                    jobPosition.setRequiredExperience(Integer.parseInt(matcher.group(1)));
-                                } catch (NumberFormatException e) {
-                                    log.debug("Failed to parse experience as number: {}", experience);
-                                }
-                            }
-                        }
-                        log.debug("Experience: {}", experience);
-                        log.debug("Parsed required experience: {}", jobPosition.getRequiredExperience());
-                    } catch (Exception e) {
-                        log.warn("Failed to extract experience for job item", e);
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-description");
                     }
-
-                    log.debug("Extracted job position: {}", jobPosition);
-                    log.debug("Full job position details - Title: {}, Company: {}, Location: {}, Salary: {}, Description: {}, Experience: {}",
-                        jobPosition.getTitle(), 
-                        jobPosition.getCompany(), 
-                        jobPosition.getLocation(), 
-                        jobPosition.getSalary(),
-                        jobPosition.getDescription(), 
-                        jobPosition.getRequiredExperience());
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".text-desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-card-body");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-card-wrapper .info-desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .info-desc");
+                    }
+                    
+                    // 如果仍然没有找到描述，尝试获取整个职位卡片的文本内容
+                    if (description == null || description.isEmpty()) {
+                        try {
+                            description = jobElement.innerText();
+                            log.debug("Using full job element text as description: {}", 
+                                description != null ? (description.length() > 200 ? description.substring(0, 200) + "..." : description) : "null");
+                        } catch (Exception e) {
+                            log.warn("Failed to extract full job element text", e);
+                        }
+                    }
+                    
+                    if (description != null && !description.isEmpty()) {
+                        // 验证描述内容不等于薪资信息
+                        String salaryText1 = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary");
+                        String salaryText2 = extractTextWithSelector(jobElement, ".job-salary");
+                        
+                        boolean isDescriptionValid = true;
+                        if (description.equals(salaryText1) || description.equals(salaryText2)) {
+                            log.debug("Description is same as salary, ignoring");
+                            isDescriptionValid = false;
+                        }
+                        
+                        // 检查描述是否过短
+                        if (isDescriptionValid && description.length() < 10) {
+                            log.debug("Description is too short (less than 10 chars): {}", description);
+                            isDescriptionValid = false;
+                        }
+                        
+                        if (isDescriptionValid) {
+                            jobPosition.setDescription(description);
+                            log.debug("Job description set: {}", 
+                                description.length() > 200 ? description.substring(0, 200) + "..." : description);
+                        }
+                    } else {
+                        log.debug("No valid description found for job item");
+                    }
+                    log.debug("Final job description: {}", jobPosition.getDescription());
                 } catch (Exception e) {
                     log.error("Error processing job item", e);
                 }
@@ -1097,6 +1089,9 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     log.debug("Extracting description for job item {}/{}", i+1, jobElements.size());
                     String description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-detail");
                     if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-detail");
+                    }
+                    if (description == null || description.isEmpty()) {
                         description = extractTextWithSelector(jobElement, ".job-description");
                     }
                     if (description == null || description.isEmpty()) {
@@ -1106,20 +1101,55 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                         description = extractTextWithSelector(jobElement, ".text-desc");
                     }
                     if (description == null || description.isEmpty()) {
-                        description = extractTextWithSelector(jobElement, ".job-detail");
-                    }
-                    if (description == null || description.isEmpty()) {
                         description = extractTextWithSelector(jobElement, ".desc");
                     }
-                    if (description != null && !description.isEmpty()) {
-                        // 如果description为空，才设置描述信息，避免覆盖薪资信息
-                        if (jobPosition.getDescription() == null || jobPosition.getDescription().isEmpty() || 
-                            jobPosition.getDescription().equals(extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary")) ||
-                            jobPosition.getDescription().equals(extractTextWithSelector(jobElement, ".job-salary"))) {
-                            jobPosition.setDescription(description);
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-card-body");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-card-wrapper .info-desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .info-desc");
+                    }
+                    
+                    // 如果仍然没有找到描述，尝试获取整个职位卡片的文本内容
+                    if (description == null || description.isEmpty()) {
+                        try {
+                            description = jobElement.innerText();
+                            log.debug("Using full job element text as description: {}", 
+                                description != null ? (description.length() > 200 ? description.substring(0, 200) + "..." : description) : "null");
+                        } catch (Exception e) {
+                            log.warn("Failed to extract full job element text", e);
                         }
                     }
-                    log.debug("Job description: {}", jobPosition.getDescription());
+                    
+                    if (description != null && !description.isEmpty()) {
+                        // 验证描述内容不等于薪资信息
+                        String salaryText1 = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary");
+                        String salaryText2 = extractTextWithSelector(jobElement, ".job-salary");
+                        
+                        boolean isDescriptionValid = true;
+                        if (description.equals(salaryText1) || description.equals(salaryText2)) {
+                            log.debug("Description is same as salary, ignoring");
+                            isDescriptionValid = false;
+                        }
+                        
+                        // 检查描述是否过短
+                        if (isDescriptionValid && description.length() < 10) {
+                            log.debug("Description is too short (less than 10 chars): {}", description);
+                            isDescriptionValid = false;
+                        }
+                        
+                        if (isDescriptionValid) {
+                            jobPosition.setDescription(description);
+                            log.debug("Job description set: {}", 
+                                description.length() > 200 ? description.substring(0, 200) + "..." : description);
+                        }
+                    } else {
+                        log.debug("No valid description found for job item");
+                    }
+                    log.debug("Final job description: {}", jobPosition.getDescription());
 
                     // 提取经验要求
                     log.debug("Extracting experience for job item {}/{}", i+1, jobElements.size());
