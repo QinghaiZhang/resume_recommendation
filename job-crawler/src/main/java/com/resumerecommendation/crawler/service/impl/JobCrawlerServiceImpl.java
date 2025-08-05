@@ -39,18 +39,27 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
     private final Map<String, BrowserContext> browserContexts = new ConcurrentHashMap<>();
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
-    // 常见的用户代理字符串
-    private static final String[] USER_AGENTS = {
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/5.37.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15"
-    };
-
     private Site site = Site.me()
             .setRetryTimes(3)
-            .setSleepTime(1000)
-            .setTimeOut(10000);
+            .setSleepTime(2000)
+            .setTimeOut(15000)
+            .setCharset("UTF-8")
+            .addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+            .addHeader("Accept-Encoding", "gzip, deflate, br")
+            .addHeader("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+            .addHeader("Connection", "keep-alive")
+            .addHeader("Referer", "https://www.zhipin.com/")
+            .addHeader("DNT", "1")
+            .addHeader("Upgrade-Insecure-Requests", "1");
+
+    // 常见的用户代理字符串
+    private static final String[] USER_AGENTS = {
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0"
+    };
 
     @PostConstruct
     public void init() {
@@ -125,8 +134,8 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
             // 创建浏览器并配置反反爬虫设置
             browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                    .setHeadless(true)
-                    .setSlowMo(50) // 减慢操作速度
+                    .setHeadless(false) // 默认设置为false，方便调试
+                    .setSlowMo(100) // 减慢操作速度
                     .setArgs(List.of(
                         "--no-sandbox",
                         "--disable-setuid-sandbox",
@@ -134,14 +143,28 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                         "--disable-accelerated-2d-canvas",
                         "--no-first-run",
                         "--no-zygote",
-                        "--disable-gpu"
+                        "--disable-gpu",
+                        "--disable-web-security",
+                        "--disable-features=IsolateOrigins,site-per-process",
+                        "--enable-features=NetworkService,NetworkServiceInProcess"
                     )));
 
             // 创建浏览器上下文并配置反反爬虫设置
             context = browser.newContext(new Browser.NewContextOptions()
                     .setUserAgent(userAgent)
                     .setViewportSize(1920, 1080)
-                    .setExtraHTTPHeaders(Map.of("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")));
+                    .setExtraHTTPHeaders(Map.of(
+                        "Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8",
+                        "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                        "Accept-Encoding", "gzip, deflate, br",
+                        "Referer", "https://www.zhipin.com/",
+                        "DNT", "1",
+                        "Connection", "keep-alive",
+                        "Upgrade-Insecure-Requests", "1"
+                    ))
+                    .setGeolocation(31.2304, 121.4737) // 设置地理位置（上海）纬度、经度
+                    .setLocale("zh-CN")
+                    .setTimezoneId("Asia/Shanghai"));
 
             // 添加避免被检测的脚本
             context.addInitScript("() => {" +
@@ -153,6 +176,36 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                 "Object.defineProperty(navigator, 'languages', {" +
                     "get: () => ['zh-CN', 'zh', 'en']" +
                 "});" +
+                // 添加更多浏览器指纹伪装
+                "Object.defineProperty(navigator, 'platform', {" +
+                    "get: () => 'Win32'" +
+                "});" +
+                "Object.defineProperty(navigator, 'deviceMemory', {" +
+                    "get: () => 8" +
+                "});" +
+                "Object.defineProperty(navigator, 'hardwareConcurrency', {" +
+                    "get: () => 4" +
+                "});" +
+                "Object.defineProperty(navigator, 'cookieEnabled', {" +
+                    "get: () => true" +
+                "});" +
+                "Object.defineProperty(navigator, 'doNotTrack', {" +
+                    "get: () => null" +
+                "});" +
+                // 伪装canvas指纹
+                "const canvas = document.createElement('canvas');" +
+                "const ctx = canvas.getContext('2d');" +
+                "ctx.textBaseline = 'top';" +
+                "ctx.font = '14px Arial';" +
+                "ctx.fillText('test', 2, 2);" +
+                "const originalToDataURL = canvas.toDataURL;" +
+                "canvas.toDataURL = function(type, quality) {" +
+                    "if (type === 'image/png') {" +
+                        "return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';" +
+                    "} else {" +
+                        "return originalToDataURL.call(this, type, quality);" +
+                    "}" +
+                "};" +
             "}");
 
             browserContexts.put(source, context);
@@ -162,15 +215,34 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
             // 设置页面加载超时
             page.setDefaultTimeout(30000);
+            
+            // 设置页面加载状态
+            page.setDefaultNavigationTimeout(30000);
 
             // 访问目标页面
             page.navigate(jobSource.getListUrl());
 
             // 等待页面加载
             page.waitForLoadState();
+            
+            // 检查是否被重定向到安全检查页面
+            if (page.url().contains("security-check")) {
+                log.warn("Detected security check page. Waiting for manual verification or trying to bypass...");
+                // 等待更长时间，希望安全检查能自动通过
+                randomWait(10000, 15000);
+                
+                // 检查是否仍然在安全检查页面
+                if (page.url().contains("security-check")) {
+                    log.error("Still on security check page. Manual intervention may be required.");
+                    // 尝试重新加载页面
+                    page.reload();
+                    page.waitForLoadState();
+                    randomWait(5000, 10000);
+                }
+            }
 
             // 随机等待，模拟人类行为
-            randomWait(2000, 5000);
+            randomWait(3000, 6000);
 
             // 处理页面内容
             processPageWithPlaywright(page, jobSource);
@@ -218,6 +290,9 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
             // 等待页面完全加载
             page.waitForLoadState();
+            
+            // 额外等待确保动态内容加载完成
+            randomWait(5000, 8000);
 
             // 查找职位列表项 - 使用多种选择器尝试
             String[] selectors = {
@@ -225,7 +300,12 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                 ".job-card-wrapper",
                 "[class*='job'][class*='card']",
                 ".job-list-item",
-                ".job-card"
+                ".job-card",
+                "[ka*='search_list_job']",
+                ".job-primary", 
+                ".job-item",
+                "[data-lg-tj-id]",
+                "[data-itemid]"
             };
 
             List<ElementHandle> jobElements = new ArrayList<>();
@@ -237,17 +317,87 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     if (!jobElements.isEmpty()) {
                         log.info("Using selector {} found {} job elements", selector, jobElements.size());
                         break;
+                    } else {
+                        log.debug("Selector {} returned no elements", selector);
                     }
                 } catch (Exception e) {
-                    log.debug("Selector {} not found", selector);
+                    log.debug("Selector {} not found or caused exception: {}", selector, e.getMessage());
                 }
             }
 
+            // 如果仍然没有找到元素，记录页面信息用于调试
             if (jobElements.isEmpty()) {
                 log.warn("No job elements found with any selector");
-                // 保存页面内容用于调试
+                
+                // 记录页面标题
+                String title = page.title();
+                log.info("Page title: {}", title);
+                
+                // 记录页面URL
+                String url = page.url();
+                log.info("Page URL: {}", url);
+                
+                // 检查是否是验证码页面
+                if (title.contains("验证码") || title.contains("验证") || title.contains("captcha")) {
+                    log.error("Encountered CAPTCHA page. This is likely due to anti-crawling measures.");
+                }
+                
+                // 记录部分页面内容用于调试
                 String content = page.content();
                 log.debug("Page content length: {}", content.length());
+                
+                // 检查页面内容中的关键字
+                boolean hasJobContent = content.contains("job") || content.contains("职位") || content.contains("招聘");
+                boolean hasSalaryContent = content.contains("salary") || content.contains("薪资");
+                boolean hasCompanyContent = content.contains("company") || content.contains("公司");
+                boolean hasCaptcha = content.contains("captcha") || content.contains("验证码");
+                
+                log.info("Page content analysis - Jobs: {}, Salaries: {}, Companies: {}, CAPTCHA: {}", 
+                    hasJobContent, hasSalaryContent, hasCompanyContent, hasCaptcha);
+                
+                // 截取部分内容记录日志（避免日志过大）
+                if (content.length() > 5000) {
+                    log.debug("Page content (first 5000 chars): {}", content.substring(0, 5000));
+                } else {
+                    log.debug("Page content: {}", content);
+                }
+                
+                // 尝试查找页面上的所有元素，看是否存在职位相关的关键字
+                try {
+                    List<ElementHandle> allElements = page.querySelectorAll("*");
+                    log.info("Total elements on page: {}", allElements.size());
+                    
+                    // 查找包含职位相关关键字的元素
+                    int jobRelatedElements = 0;
+                    for (ElementHandle element : allElements) {
+                        try {
+                            String innerText = element.innerText();
+                            if (innerText != null && 
+                                (innerText.contains("job") || 
+                                 innerText.contains("职位") || 
+                                 innerText.contains("招聘") || 
+                                 innerText.contains("salary") ||
+                                 innerText.contains("薪资") ||
+                                 innerText.contains("company") ||
+                                 innerText.contains("公司"))) {
+                                jobRelatedElements++;
+                                log.debug("Found job-related element with text: {}", 
+                                    innerText.length() > 100 ? innerText.substring(0, 100) + "..." : innerText);
+                            }
+                        } catch (Exception e) {
+                            // 忽略单个元素的异常
+                        }
+                    }
+                    log.info("Found {} job-related elements on page", jobRelatedElements);
+                    
+                    // 如果找不到任何职位相关元素，可能是页面结构发生了变化
+                    if (jobRelatedElements == 0) {
+                        log.warn("No job-related elements found. The page structure may have changed or the search returned no results.");
+                    }
+                } catch (Exception e) {
+                    log.warn("Error while analyzing all page elements", e);
+                }
+                
                 return;
             }
 
@@ -256,6 +406,7 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
             // 处理每个职位项
             for (int i = 0; i < Math.min(jobElements.size(), 20); i++) { // 限制处理数量避免被封
                 ElementHandle jobElement = jobElements.get(i);
+                log.debug("Processing job item {}/{}", i+1, jobElements.size());
                 try {
                     JobPosition jobPosition = new JobPosition();
                     jobPosition.setSource(jobSource.getName());
@@ -268,6 +419,7 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                     // 提取职位标题
                     try {
+                        log.debug("Extracting title for job item {}/{}", i+1, jobElements.size());
                         String title = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-name");
                         if (title == null || title.isEmpty()) {
                             title = extractTextWithSelector(jobElement, ".job-title .job-name");
@@ -283,12 +435,19 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                     // 提取公司名称
                     try {
+                        log.debug("Extracting company for job item {}/{}", i+1, jobElements.size());
                         String company = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .company-name");
                         if (company == null || company.isEmpty()) {
                             company = extractTextWithSelector(jobElement, ".company-info .name");
                         }
                         if (company == null || company.isEmpty()) {
                             company = extractTextWithSelector(jobElement, "[class*='company-name']");
+                        }
+                        if (company == null || company.isEmpty()) {
+                            company = extractTextWithSelector(jobElement, ".company-title");
+                        }
+                        if (company == null || company.isEmpty()) {
+                            company = extractTextWithSelector(jobElement, ".company-name");
                         }
                         jobPosition.setCompany(company);
                         log.debug("Company name: {}", jobPosition.getCompany());
@@ -298,6 +457,7 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                     // 提取工作地点
                     try {
+                        log.debug("Extracting location for job item {}/{}", i+1, jobElements.size());
                         String location = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-area");
                         if (location == null || location.isEmpty()) {
                             location = extractTextWithSelector(jobElement, ".job-location");
@@ -308,6 +468,12 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                         if (location == null || location.isEmpty()) {
                             location = extractTextWithSelector(jobElement, "[class*='area']");
                         }
+                        if (location == null || location.isEmpty()) {
+                            location = extractTextWithSelector(jobElement, ".area");
+                        }
+                        if (location == null || location.isEmpty()) {
+                            location = extractTextWithSelector(jobElement, ".job-area");
+                        }
                         jobPosition.setLocation(location);
                         log.debug("Job location: {}", jobPosition.getLocation());
                     } catch (Exception e) {
@@ -316,6 +482,7 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                     // 提取薪资范围
                     try {
+                        log.debug("Extracting salary for job item {}/{}", i+1, jobElements.size());
                         String salary = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary");
                         if (salary == null || salary.isEmpty()) {
                             salary = extractTextWithSelector(jobElement, ".salary");
@@ -326,18 +493,59 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                         if (salary == null || salary.isEmpty()) {
                             salary = extractTextWithSelector(jobElement, "[class*='salary']");
                         }
-
-                        jobPosition.setDescription(salary); // 暂时将薪资信息放在描述字段中
+                        if (salary == null || salary.isEmpty()) {
+                            salary = extractTextWithSelector(jobElement, ".salary-text");
+                        }
+                        if (salary == null || salary.isEmpty()) {
+                            salary = extractTextWithSelector(jobElement, ".job-salary");
+                        }
+                        
+                        // 设置薪资信息
+                        jobPosition.setSalary(salary);
                         log.debug("Salary: {}", salary);
 
                         // 解析薪资范围
                         parseSalaryRange(jobPosition, salary);
+                        log.debug("Parsed salary range: {}-{}", jobPosition.getSalaryMin(), jobPosition.getSalaryMax());
                     } catch (Exception e) {
                         log.warn("Failed to extract salary for job item", e);
                     }
 
+                    // 提取职位描述
+                    try {
+                        log.debug("Extracting description for job item {}/{}", i+1, jobElements.size());
+                        String description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-detail");
+                        if (description == null || description.isEmpty()) {
+                            description = extractTextWithSelector(jobElement, ".job-description");
+                        }
+                        if (description == null || description.isEmpty()) {
+                            description = extractTextWithSelector(jobElement, ".job-desc");
+                        }
+                        if (description == null || description.isEmpty()) {
+                            description = extractTextWithSelector(jobElement, ".text-desc");
+                        }
+                        if (description == null || description.isEmpty()) {
+                            description = extractTextWithSelector(jobElement, ".job-detail");
+                        }
+                        if (description == null || description.isEmpty()) {
+                            description = extractTextWithSelector(jobElement, ".desc");
+                        }
+                        if (description != null && !description.isEmpty()) {
+                            // 如果description为空，才设置描述信息，避免覆盖薪资信息
+                            if (jobPosition.getDescription() == null || jobPosition.getDescription().isEmpty() || 
+                                jobPosition.getDescription().equals(extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary")) ||
+                                jobPosition.getDescription().equals(extractTextWithSelector(jobElement, ".job-salary"))) {
+                                jobPosition.setDescription(description);
+                            }
+                        }
+                        log.debug("Job description: {}", jobPosition.getDescription());
+                    } catch (Exception e) {
+                        log.warn("Failed to extract description for job item", e);
+                    }
+
                     // 提取经验要求
                     try {
+                        log.debug("Extracting experience for job item {}/{}", i+1, jobElements.size());
                         String experience = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .tag-list li:first-child");
                         if (experience == null || experience.isEmpty()) {
                             experience = extractTextWithSelector(jobElement, ".experience");
@@ -363,11 +571,19 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                             }
                         }
                         log.debug("Experience: {}", experience);
+                        log.debug("Parsed required experience: {}", jobPosition.getRequiredExperience());
                     } catch (Exception e) {
                         log.warn("Failed to extract experience for job item", e);
                     }
 
                     log.debug("Extracted job position: {}", jobPosition);
+                    log.debug("Full job position details - Title: {}, Company: {}, Location: {}, Salary: {}, Description: {}, Experience: {}",
+                        jobPosition.getTitle(), 
+                        jobPosition.getCompany(), 
+                        jobPosition.getLocation(), 
+                        jobPosition.getSalary(),
+                        jobPosition.getDescription(), 
+                        jobPosition.getRequiredExperience());
                 } catch (Exception e) {
                     log.error("Error processing job item", e);
                 }
@@ -408,10 +624,13 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
             ElementHandle subElement = element.querySelector(selector);
             if (subElement != null) {
                 String text = subElement.innerText();
+                log.debug("Selector '{}' found text: {}", selector, text);
                 return text != null ? text.trim() : null;
+            } else {
+                log.debug("Selector '{}' did not match any elements", selector);
             }
         } catch (Exception e) {
-            log.debug("Could not extract text with selector: {}", selector);
+            log.debug("Could not extract text with selector: {}", selector, e);
         }
         return null;
     }
@@ -530,8 +749,8 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                 // 创建浏览器并配置反反爬虫设置
                 browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                        .setHeadless(true)
-                        .setSlowMo(50)
+                        .setHeadless(false) // 默认设置为false，方便调试
+                        .setSlowMo(100) // 减慢操作速度
                         .setArgs(List.of(
                             "--no-sandbox",
                             "--disable-setuid-sandbox",
@@ -539,14 +758,28 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                             "--disable-accelerated-2d-canvas",
                             "--no-first-run",
                             "--no-zygote",
-                            "--disable-gpu"
+                            "--disable-gpu",
+                            "--disable-web-security",
+                            "--disable-features=IsolateOrigins,site-per-process",
+                            "--enable-features=NetworkService,NetworkServiceInProcess"
                         )));
 
                 // 创建浏览器上下文并配置反反爬虫设置
                 context = browser.newContext(new Browser.NewContextOptions()
                         .setUserAgent(userAgent)
                         .setViewportSize(1920, 1080)
-                        .setExtraHTTPHeaders(Map.of("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")));
+                        .setExtraHTTPHeaders(Map.of(
+                            "Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8",
+                            "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                            "Accept-Encoding", "gzip, deflate, br",
+                            "Referer", "https://www.zhipin.com/",
+                            "DNT", "1",
+                            "Connection", "keep-alive",
+                            "Upgrade-Insecure-Requests", "1"
+                        ))
+                        .setGeolocation(31.2304, 121.4737) // 设置地理位置（上海）纬度、经度
+                        .setLocale("zh-CN")
+                        .setTimezoneId("Asia/Shanghai"));
 
                 // 添加避免被检测的脚本
                 context.addInitScript("() => {" +
@@ -558,6 +791,36 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     "Object.defineProperty(navigator, 'languages', {" +
                         "get: () => ['zh-CN', 'zh', 'en']" +
                     "});" +
+                    // 添加更多浏览器指纹伪装
+                    "Object.defineProperty(navigator, 'platform', {" +
+                        "get: () => 'Win32'" +
+                    "});" +
+                    "Object.defineProperty(navigator, 'deviceMemory', {" +
+                        "get: () => 8" +
+                    "});" +
+                    "Object.defineProperty(navigator, 'hardwareConcurrency', {" +
+                        "get: () => 4" +
+                    "});" +
+                    "Object.defineProperty(navigator, 'cookieEnabled', {" +
+                        "get: () => true" +
+                    "});" +
+                    "Object.defineProperty(navigator, 'doNotTrack', {" +
+                        "get: () => null" +
+                    "});" +
+                    // 伪装canvas指纹
+                    "const canvas = document.createElement('canvas');" +
+                    "const ctx = canvas.getContext('2d');" +
+                    "ctx.textBaseline = 'top';" +
+                    "ctx.font = '14px Arial';" +
+                    "ctx.fillText('test', 2, 2);" +
+                    "const originalToDataURL = canvas.toDataURL;" +
+                    "canvas.toDataURL = function(type, quality) {" +
+                        "if (type === 'image/png') {" +
+                            "return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';" +
+                        "} else {" +
+                            "return originalToDataURL.call(this, type, quality);" +
+                        "}" +
+                    "};" +
                 "}");
 
                 // 创建页面
@@ -565,12 +828,29 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                 // 设置页面加载超时
                 page.setDefaultTimeout(30000);
+                page.setDefaultNavigationTimeout(30000);
 
                 // 访问目标页面
                 page.navigate(searchUrl);
 
                 // 等待页面加载
                 page.waitForLoadState();
+                
+                // 检查是否被重定向到安全检查页面
+                if (page.url().contains("security-check")) {
+                    log.warn("Detected security check page during search. Waiting for manual verification or trying to bypass...");
+                    // 等待更长时间，希望安全检查能自动通过
+                    randomWait(10000, 15000);
+                    
+                    // 检查是否仍然在安全检查页面
+                    if (page.url().contains("security-check")) {
+                        log.error("Still on security check page during search. Manual intervention may be required.");
+                        // 尝试重新加载页面
+                        page.reload();
+                        page.waitForLoadState();
+                        randomWait(5000, 10000);
+                    }
+                }
 
                 // 随机等待，模拟人类行为
                 randomWait(3000, 5000);
@@ -630,7 +910,12 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                 ".job-card-wrapper",
                 "[class*='job'][class*='card']",
                 ".job-list-item",
-                ".job-card"
+                ".job-card",
+                "[ka*='search_list_job']",
+                ".job-primary",
+                ".job-item",
+                "[data-lg-tj-id]",
+                "[data-itemid]"
             };
 
             List<ElementHandle> jobElements = new ArrayList<>();
@@ -642,26 +927,101 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     if (!jobElements.isEmpty()) {
                         log.info("Using selector {} found {} job elements", selector, jobElements.size());
                         break;
+                    } else {
+                        log.debug("Selector {} returned no elements", selector);
                     }
                 } catch (Exception e) {
-                    log.debug("Selector {} not found", selector);
+                    log.debug("Selector {} not found or caused exception: {}", selector, e.getMessage());
                 }
             }
 
+            // 如果仍然没有找到元素，记录页面信息用于调试
             if (jobElements.isEmpty()) {
-                log.warn("No job elements found with any selector");
+                log.warn("No job elements found with any selector in search results");
+                
+                // 记录页面标题
+                String title = page.title();
+                log.info("Page title: {}", title);
+                
+                // 记录页面URL
+                String url = page.url();
+                log.info("Page URL: {}", url);
+                
+                // 检查是否是验证码页面
+                if (title.contains("验证码") || title.contains("验证") || title.contains("captcha")) {
+                    log.error("Encountered CAPTCHA page. This is likely due to anti-crawling measures.");
+                }
+                
+                // 记录部分页面内容用于调试
+                String content = page.content();
+                log.debug("Page content length: {}", content.length());
+                
+                // 检查页面内容中的关键字
+                boolean hasJobContent = content.contains("job") || content.contains("职位") || content.contains("招聘");
+                boolean hasSalaryContent = content.contains("salary") || content.contains("薪资");
+                boolean hasCompanyContent = content.contains("company") || content.contains("公司");
+                boolean hasCaptcha = content.contains("captcha") || content.contains("验证码");
+                
+                log.info("Page content analysis - Jobs: {}, Salaries: {}, Companies: {}, CAPTCHA: {}", 
+                    hasJobContent, hasSalaryContent, hasCompanyContent, hasCaptcha);
+                
+                // 截取部分内容记录日志（避免日志过大）
+                if (content.length() > 5000) {
+                    log.debug("Page content (first 5000 chars): {}", content.substring(0, 5000));
+                } else {
+                    log.debug("Page content: {}", content);
+                }
+                
+                // 尝试查找页面上的所有元素，看是否存在职位相关的关键字
+                try {
+                    List<ElementHandle> allElements = page.querySelectorAll("*");
+                    log.info("Total elements on page: {}", allElements.size());
+                    
+                    // 查找包含职位相关关键字的元素
+                    int jobRelatedElements = 0;
+                    for (ElementHandle element : allElements) {
+                        try {
+                            String innerText = element.innerText();
+                            if (innerText != null && 
+                                (innerText.contains("job") || 
+                                 innerText.contains("职位") || 
+                                 innerText.contains("招聘") || 
+                                 innerText.contains("salary") ||
+                                 innerText.contains("薪资") ||
+                                 innerText.contains("company") ||
+                                 innerText.contains("公司"))) {
+                                jobRelatedElements++;
+                                log.debug("Found job-related element with text: {}", 
+                                    innerText.length() > 100 ? innerText.substring(0, 100) + "..." : innerText);
+                            }
+                        } catch (Exception e) {
+                            // 忽略单个元素的异常
+                        }
+                    }
+                    log.info("Found {} job-related elements on page", jobRelatedElements);
+                    
+                    // 如果找不到任何职位相关元素，可能是页面结构发生了变化
+                    if (jobRelatedElements == 0) {
+                        log.warn("No job-related elements found. The page structure may have changed or the search returned no results.");
+                    }
+                } catch (Exception e) {
+                    log.warn("Error while analyzing all page elements", e);
+                }
+                
                 return jobs;
             }
 
             // 处理找到的职位项
             for (int i = 0; i < Math.min(jobElements.size(), 20); i++) { // 限制处理数量
                 ElementHandle jobElement = jobElements.get(i);
+                log.debug("Processing job item {}/{} in search results", i+1, jobElements.size());
                 try {
                     JobPosition jobPosition = new JobPosition();
                     jobPosition.setSource("zhipin");
                     jobPosition.setCrawlTime(LocalDateTime.now());
 
                     // 提取职位标题
+                    log.debug("Extracting title for job item {}/{}", i+1, jobElements.size());
                     String title = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-name");
                     if (title == null || title.isEmpty()) {
                         title = extractTextWithSelector(jobElement, ".job-title .job-name");
@@ -672,6 +1032,7 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     jobPosition.setTitle(title);
 
                     // 提取公司名称
+                    log.debug("Extracting company for job item {}/{}", i+1, jobElements.size());
                     String company = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .company-name");
                     if (company == null || company.isEmpty()) {
                         company = extractTextWithSelector(jobElement, ".company-info .name");
@@ -679,9 +1040,17 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     if (company == null || company.isEmpty()) {
                         company = extractTextWithSelector(jobElement, "[class*='company-name']");
                     }
+                    if (company == null || company.isEmpty()) {
+                        company = extractTextWithSelector(jobElement, ".company-title");
+                    }
+                    if (company == null || company.isEmpty()) {
+                        company = extractTextWithSelector(jobElement, ".company-name");
+                    }
                     jobPosition.setCompany(company);
+                    log.debug("Company name: {}", jobPosition.getCompany());
 
                     // 提取工作地点
+                    log.debug("Extracting location for job item {}/{}", i+1, jobElements.size());
                     String location = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-area");
                     if (location == null || location.isEmpty()) {
                         location = extractTextWithSelector(jobElement, ".job-location");
@@ -692,9 +1061,17 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     if (location == null || location.isEmpty()) {
                         location = extractTextWithSelector(jobElement, "[class*='area']");
                     }
+                    if (location == null || location.isEmpty()) {
+                        location = extractTextWithSelector(jobElement, ".area");
+                    }
+                    if (location == null || location.isEmpty()) {
+                        location = extractTextWithSelector(jobElement, ".job-area");
+                    }
                     jobPosition.setLocation(location);
+                    log.debug("Job location: {}", jobPosition.getLocation());
 
                     // 提取薪资范围
+                    log.debug("Extracting salary for job item {}/{}", i+1, jobElements.size());
                     String salary = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary");
                     if (salary == null || salary.isEmpty()) {
                         salary = extractTextWithSelector(jobElement, ".salary");
@@ -705,11 +1082,47 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
                     if (salary == null || salary.isEmpty()) {
                         salary = extractTextWithSelector(jobElement, "[class*='salary']");
                     }
-
-                    jobPosition.setDescription(salary);
+                    if (salary == null || salary.isEmpty()) {
+                        salary = extractTextWithSelector(jobElement, ".salary-text");
+                    }
+                    if (salary == null || salary.isEmpty()) {
+                        salary = extractTextWithSelector(jobElement, ".job-salary");
+                    }
+                    
+                    // 解析薪资范围
                     parseSalaryRange(jobPosition, salary);
+                    log.debug("Parsed salary range: {}-{}", jobPosition.getSalaryMin(), jobPosition.getSalaryMax());
+
+                    // 提取职位描述
+                    log.debug("Extracting description for job item {}/{}", i+1, jobElements.size());
+                    String description = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-detail");
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-description");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".text-desc");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".job-detail");
+                    }
+                    if (description == null || description.isEmpty()) {
+                        description = extractTextWithSelector(jobElement, ".desc");
+                    }
+                    if (description != null && !description.isEmpty()) {
+                        // 如果description为空，才设置描述信息，避免覆盖薪资信息
+                        if (jobPosition.getDescription() == null || jobPosition.getDescription().isEmpty() || 
+                            jobPosition.getDescription().equals(extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .job-salary")) ||
+                            jobPosition.getDescription().equals(extractTextWithSelector(jobElement, ".job-salary"))) {
+                            jobPosition.setDescription(description);
+                        }
+                    }
+                    log.debug("Job description: {}", jobPosition.getDescription());
 
                     // 提取经验要求
+                    log.debug("Extracting experience for job item {}/{}", i+1, jobElements.size());
                     String experience = extractTextWithSelector(jobElement, "[data-v-7a4b5b6e] .tag-list li:first-child");
                     if (experience == null || experience.isEmpty()) {
                         experience = extractTextWithSelector(jobElement, ".experience");
@@ -738,6 +1151,14 @@ public class JobCrawlerServiceImpl implements JobCrawlerService, PageProcessor {
 
                     jobs.add(jobPosition);
                     log.debug("Extracted job: {}", jobPosition.getTitle());
+                    log.debug("Full job position details - Title: {}, Company: {}, Location: {}, Salary: {}-{}, Description: {}, Experience: {}", 
+                        jobPosition.getTitle(), 
+                        jobPosition.getCompany(), 
+                        jobPosition.getLocation(), 
+                        jobPosition.getSalaryMin(), 
+                        jobPosition.getSalaryMax(), 
+                        jobPosition.getDescription(), 
+                        jobPosition.getRequiredExperience());
                 } catch (Exception e) {
                     log.error("Error processing job item", e);
                 }

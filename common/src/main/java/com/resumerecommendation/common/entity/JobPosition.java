@@ -44,6 +44,9 @@ public class JobPosition {
     @Schema(description = "最高薪资")
     private Integer salaryMax;
 
+    @Schema(description = "薪资")
+    private String salary;
+
     @Schema(description = "所需技能")
     private List<String> requiredSkills;
 
@@ -83,7 +86,4 @@ public class JobPosition {
     @Schema(description = "相关度分数")
     private Double relevanceScore;
 
-    public void setRelevanceScore(Double relevanceScore) {
-        this.relevanceScore = relevanceScore;
-    }
-} 
+}
